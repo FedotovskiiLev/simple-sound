@@ -6,6 +6,8 @@
   <meta name="theme-color" content="#101113">
   <meta name="description" content="simple sound — минималистичный звуковой пульт прямо в браузере.">
   <title>simple sound</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2264%22%20height%3D%2264%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2216%22%20fill%3D%22%23101113%22%2F%3E%3Cg%20fill%3D%22%23d1fc83%22%3E%3Crect%20x%3D%2214%22%20y%3D%2226%22%20width%3D%226%22%20height%3D%2212%22%20rx%3D%223%22%2F%3E%3Crect%20x%3D%2224%22%20y%3D%2218%22%20width%3D%226%22%20height%3D%2228%22%20rx%3D%223%22%2F%3E%3Crect%20x%3D%2234%22%20y%3D%2212%22%20width%3D%226%22%20height%3D%2240%22%20rx%3D%223%22%2F%3E%3Crect%20x%3D%2244%22%20y%3D%2223%22%20width%3D%226%22%20height%3D%2218%22%20rx%3D%223%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E">
+  <meta name="application-name" content="simple sound">
   <style>
     :root {
       color-scheme: dark;
@@ -153,6 +155,45 @@
       .now-playing { max-width: 100%; }
       .list-head .hint { display: none; }
     }
+
+    /* Режимы управления звуком: не отвлекают от списка и всегда одинаковой высоты. */
+    .modebar { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; margin:-7px 0 24px; }
+    .mode-choice { display:flex; align-items:center; gap:13px; min-width:0; min-height:68px; padding:12px 15px; color:#e5e6e3; text-align:left; cursor:pointer; border:1px solid var(--border); border-radius:12px; background:var(--surface); transition:background .15s,border-color .15s; }
+    .mode-choice:hover { background:var(--surface-hover); border-color:#53565a; }
+    .mode-choice.active { border-color:#698044; background:#1d241b; }
+    .mode-choice.active .mode-key, .mode-choice.active kbd { color:var(--accent); border-color:#698044; }
+    .mode-choice > svg { width:22px; height:22px; flex-shrink:0; color:#b7bcb5; }
+    .mode-choice.active > svg { color:var(--accent); }
+    .mode-copy { min-width:0; flex:1; display:flex; flex-direction:column; gap:5px; }
+    .mode-copy strong { font-size:14px; font-weight:660; line-height:1.15; }
+    .mode-copy small { color:var(--muted); font-size:11px; font-weight:450; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    .mode-hint { grid-column:1/-1; min-height:27px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 18px; font-size:12px; line-height:1.5; color:var(--muted); }
+    .mode-hint #modeStatus { min-width:0; flex:1; color:#bec1be; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    .mode-hint.is-active #modeStatus { color:#c0d79c; }
+    .mode-controls { flex-shrink:0; }
+    .mode-hint kbd { height:22px; min-width:23px; font-size:11px; }
+    .track.next-queue:not(.playing) { border-color:#536346; }
+    .track.next-queue:not(.playing) .track-meta { color:#b0cd85; }
+    .track-name.editable { cursor:text; }
+    .track-name.editable:hover { color:var(--accent); }
+    .track-name-edit { display:block; width:100%; max-width:100%; min-width:0; padding:6px 8px; margin:-7px -9px -8px; font:inherit; font-size:14px; font-weight:610; color:var(--text); background:#232a24; border:1px solid var(--accent); border-radius:7px; outline:none; }
+    .page-add { display:inline-flex; align-items:center; gap:6px; }
+    .page-add svg { width:15px; height:15px; }
+    .list-toggle { margin-left:auto; flex-shrink:0; align-self:center; }
+    @media (max-width:640px) {
+      .modebar { margin-top:-4px; }
+      .mode-choice { gap:8px; min-height:64px; padding:10px; }
+      .mode-choice > svg { width:19px; height:19px; }
+      .mode-copy strong { font-size:13px; }
+      .mode-copy small { font-size:10px; }
+      .mode-hint { align-items:flex-start; }
+      .mode-controls { white-space:normal; }
+    }
+    @media (max-width:380px) {
+      .mode-choice { padding:9px 8px; }
+      .mode-choice > svg { display:none; }
+      .mode-choice kbd { padding:0 4px; min-width:21px; }
+    }
   </style>
 </head>
 <body>
@@ -177,14 +218,14 @@
       </button>
       <div class="file-menu">
         <details class="menu" id="exportMenu">
-          <summary class="btn">Экспорт</summary>
+          <summary class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 17v3h16v-3"/></svg>Экспорт</summary>
           <div class="menu-popover">
             <button type="button" id="exportPageBtn">Текущую страницу · ZIP</button>
             <button type="button" id="exportAllBtn">Все страницы · ZIP</button>
           </div>
         </details>
         <details class="menu" id="importMenu">
-          <summary class="btn">Импорт</summary>
+          <summary class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M4 17v3h16v-3"/></svg>Импорт</summary>
           <div class="menu-popover">
             <button type="button" id="importPageBtn">Добавить страницу из ZIP</button>
             <button type="button" id="importAllBtn">Восстановить всё из ZIP</button>
@@ -195,10 +236,24 @@
       <input type="file" id="importPageInput" accept=".zip,application/zip" hidden>
       <input type="file" id="importAllInput" accept=".zip,application/zip" hidden>
     </div>
+    <section class="modebar" aria-label="Режимы воспроизведения">
+      <button class="mode-choice" id="queueBtn" type="button" aria-pressed="false" title="Очередь: пробел запускает и останавливает звуки по порядку">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h2m-2 6h2m-2 6h2M10 6h10M10 12h10M10 18h10"/></svg>
+        <span class="mode-copy"><strong>Очередь</strong><small>По порядку · пробел</small></span><kbd>S</kbd>
+      </button>
+      <button class="mode-choice" id="radioBtn" type="button" aria-pressed="false" title="Радио: случайное воспроизведение без пауз, пробел переключает, Backspace выключает">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M8.7 8.7a4.7 4.7 0 0 0 0 6.6m6.6-6.6a4.7 4.7 0 0 1 0 6.6M5.2 5.2a9.6 9.6 0 0 0 0 13.6m13.6-13.6a9.6 9.6 0 0 1 0 13.6"/></svg>
+        <span class="mode-copy"><strong>Радио</strong><small>Случайно · без пауз</small></span><kbd>R</kbd>
+      </button>
+      <div class="mode-hint" aria-live="polite">
+        <span id="modeStatus">Обычное воспроизведение</span>
+        <span class="mode-controls" id="modeControls"><kbd>1–0</kbd> звук · <kbd>Tab</kbd> страница</span>
+      </div>
+    </section>
     <div class="page-tools">
       <div class="page-section" id="pageSection">
         <div id="pageTabs" class="page-tabs" aria-label="Страницы звуков"></div>
-        <button id="addPageBtn" type="button" class="page-add">+ Страница</button>
+        <button id="addPageBtn" type="button" class="page-add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Страница</button>
         <details class="menu page-actions" id="pageMenu">
           <summary aria-label="Действия со страницей" title="Действия со страницей">···</summary>
           <div class="menu-popover">
@@ -229,7 +284,7 @@
     <div id="tracks" class="tracks" aria-label="Список звуков"></div>
 
     <div class="bottom">
-      <span id="storageInfo">Файлы сохраняются в этом браузере · <kbd>Esc</kbd> или <kbd>Space</kbd> — стоп</span>
+      <span id="storageInfo">Файлы и названия сохраняются в браузере · ZIP содержит аудио и <code>manifest.json</code></span>
       <button type="button" id="clearBtn" disabled>Удалить все</button>
     </div>
   </main>
@@ -260,6 +315,9 @@ let playbackSeq = 0;
 let toastTimeout;
 let dragDepth = 0;
 let busy = false;
+let playbackMode = 'normal'; // normal | queue | radio
+let queueCursor = 0;         // Индекс следующего звука (не текущего).
+const failedRadioIds = new Set();
 
 function uid() {
   return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
@@ -272,6 +330,12 @@ function makeBank() {
 function activeBank() { return banks.find(b => b.id === activeBankId) || banks[0]; }
 function bankTracks(id) { return tracks.filter(t => t.bankId === id).sort((a,b) => a.order - b.order); }
 function orderedTracks() { return banks.flatMap(b => bankTracks(b.id)); }
+function modeTracks() { return listMode ? orderedTracks() : bankTracks(activeBankId); }
+function onPoolChanged() {
+  if (playbackMode === 'queue') { queueCursor = 0; stopPlayback(false); }
+  else if (playbackMode === 'radio') { failedRadioIds.clear(); void radioNext(); }
+  render();
+}
 function normaliseBanks() { banks.forEach((b,i) => b.order = i); }
 function showToast(message) {
   $('toast').textContent = message;
@@ -284,9 +348,10 @@ function formatSize(bytes) {
 }
 function setActive(id) {
   if (!banks.some(b => b.id === id)) return;
+  const bankChanged = activeBankId !== id;
   activeBankId = id;
   try { localStorage.setItem('simple-sound-active-bank', id); } catch (_) {}
-  render();
+  if (bankChanged && !listMode) onPoolChanged(); else render();
 }
 function openDatabase() {
   return new Promise((resolve, reject) => {
@@ -318,7 +383,7 @@ function saveChanges(change = {}) {
   const snapshot = {
     clear: !!change.clear,
     putBanks: (change.putBanks || []).map(b => ({id: b.id, name: b.name, order: b.order})),
-    putTracks: (change.putTracks || []).map(t => ({id: t.id, name: t.name, size: t.size, blob: t.blob, bankId: t.bankId, order: t.order})),
+    putTracks: (change.putTracks || []).map(t => ({id: t.id, name: t.name, originalName: t.originalName || t.name, size: t.size, blob: t.blob, bankId: t.bankId, order: t.order})),
     deleteBanks: [...(change.deleteBanks || [])],
     deleteTracks: [...(change.deleteTracks || [])]
   };
@@ -346,7 +411,8 @@ function makeIcon(type) {
   const shapes = {
     up: '<path d="M12 19V5M5 12l7-7 7 7"/>',
     down: '<path d="M12 5v14m7-7-7 7-7-7"/>',
-    trash: '<path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m5 4v6m4-6v6"/>'
+    trash: '<path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m5 4v6m4-6v6"/>',
+    edit: '<path d="M12 20h9M4 16l-1 5 5-1L19 9l-4-4L4 16zm9-9 4 4"/>'
   };
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
@@ -397,10 +463,32 @@ function renderTabs() {
   $('deletePageBtn').disabled = banks.length <= 1;
   $('pageCount').textContent = banks.length + (banks.length === 1 ? ' страница' : banks.length < 5 ? ' страницы' : ' страниц');
 }
+function renderMode() {
+  const pool = modeTracks();
+  const queueOn = playbackMode === 'queue';
+  const radioOn = playbackMode === 'radio';
+  $('queueBtn').classList.toggle('active', queueOn);
+  $('radioBtn').classList.toggle('active', radioOn);
+  $('queueBtn').setAttribute('aria-pressed', String(queueOn));
+  $('radioBtn').setAttribute('aria-pressed', String(radioOn));
+  document.querySelector('.mode-hint').classList.toggle('is-active', queueOn || radioOn);
+  if (queueOn) {
+    const next = pool[queueCursor % (pool.length || 1)];
+    $('modeStatus').textContent = next ? (playingId !== null ? 'Играет · далее: ' : 'Следующий: ') + next.name : 'Очередь пуста · добавь звуки';
+    $('modeControls').innerHTML = '<kbd>Пробел</kbd> пуск / стоп / следующий · <kbd>S</kbd> выйти';
+  } else if (radioOn) {
+    $('modeStatus').textContent = playingId !== null ? '● Радио играет без пауз' : '● Радио включено';
+    $('modeControls').innerHTML = '<kbd>Пробел</kbd> другой звук · <kbd>Backspace</kbd> выключить';
+  } else {
+    $('modeStatus').textContent = 'Обычное воспроизведение';
+    $('modeControls').innerHTML = '<kbd>1–0</kbd> звук · <kbd>Tab</kbd> страница';
+  }
+}
 function render() {
   const current = activeBank();
   if (!current) return;
   renderTabs();
+  renderMode();
   $('listMode').checked = listMode;
   $('counter').textContent = '· ' + tracks.length;
   $('stopBtn').disabled = playingId === null;
@@ -420,7 +508,9 @@ function render() {
     const keyIndex = bankTracks(track.bankId).findIndex(t => t.id === track.id);
     const globalIndex = all.findIndex(t => t.id === track.id);
     const row = document.createElement('div');
-    row.className = 'track' + (playing ? ' playing' : '') + (listMode && belongsToActive ? ' armed' : '');
+    const nextInQueue = playbackMode === 'queue' && playingId === null && modeTracks()[queueCursor % (modeTracks().length || 1)]?.id === track.id;
+    row.className = 'track' + (playing ? ' playing' : '') + (listMode && belongsToActive ? ' armed' : '') + (nextInQueue ? ' next-queue' : '');
+    row.dataset.trackId = String(track.id);
     const key = document.createElement('span');
     key.className = 'keycap';
     key.textContent = belongsToActive ? HOTKEYS[keyIndex] : '·';
@@ -428,12 +518,13 @@ function render() {
     const info = document.createElement('div');
     info.className = 'track-info';
     const name = document.createElement('span');
-    name.className = 'track-name';
+    name.className = 'track-name editable';
     name.textContent = track.name;
-    name.title = track.name;
+    name.title = 'Двойной клик — переименовать «' + track.name + '»';
+    name.addEventListener('dblclick', () => beginRenameTrack(track.id));
     const meta = document.createElement('span');
     meta.className = 'track-meta';
-    meta.textContent = (playing ? '● Воспроизводится · ' : '') + (listMode ? banks.find(b => b.id === track.bankId).name + ' · ' : '') + formatSize(track.size);
+    meta.textContent = (playing ? '● Воспроизводится · ' : (nextInQueue ? '→ Следующий в очереди · ' : '')) + (listMode ? banks.find(b => b.id === track.bankId).name + ' · ' : '') + formatSize(track.size);
     info.append(name, meta);
     const controls = document.createElement('div');
     controls.className = 'actions';
@@ -449,6 +540,7 @@ function render() {
     play.append(symbol, label);
     play.addEventListener('click', () => toggleTrack(track.id));
     controls.append(play,
+      iconButton('edit', 'Переименовать звук', () => beginRenameTrack(track.id)),
       iconButton('up', 'Переместить выше', () => moveTrack(track.id, -1), globalIndex === 0),
       iconButton('down', 'Переместить ниже', () => moveTrack(track.id, 1), globalIndex === all.length - 1),
       iconButton('trash', 'Удалить звук', () => removeTrack(track.id), false, 'remove'));
@@ -458,7 +550,7 @@ function render() {
   tracksNode.replaceChildren(fragment);
 }
 
-function stopPlayback() {
+function stopPlayback(renderNow = true) {
   playbackSeq++;
   audio.pause();
   audio.removeAttribute('src');
@@ -466,25 +558,115 @@ function stopPlayback() {
   if (activeUrl) URL.revokeObjectURL(activeUrl);
   activeUrl = null;
   playingId = null;
+  if (renderNow) render();
+}
+function playbackFailed(id, session) {
+  if (playbackSeq !== session) return;
+  stopPlayback(false);
+  if (playbackMode === 'radio') {
+    failedRadioIds.add(id);
+    if (modeTracks().some(t => !failedRadioIds.has(t.id))) { void radioNext(); return; }
+    playbackMode = 'normal';
+    showToast('Не удалось воспроизвести звуки из радио. Проверь форматы.');
+  } else {
+    showToast('Браузер не смог воспроизвести этот файл.');
+  }
   render();
 }
-async function toggleTrack(id) {
-  if (playingId === id) { stopPlayback(); return; }
+async function playTrack(id) {
   const track = tracks.find(t => t.id === id);
   if (!track) return;
-  stopPlayback();
+  stopPlayback(false);
   const session = ++playbackSeq;
   playingId = id;
   activeUrl = URL.createObjectURL(track.blob);
   audio.src = activeUrl;
   audio.currentTime = 0;
-  audio.onended = () => { if (playbackSeq === session) stopPlayback(); };
-  audio.onerror = () => {
-    if (playbackSeq === session) { stopPlayback(); showToast('Не удалось воспроизвести этот аудиофайл.'); }
+  audio.onended = () => {
+    if (playbackSeq !== session) return;
+    if (playbackMode === 'radio') void radioNext();
+    else stopPlayback(); // Очередь ждёт пробела, не запускает следующий звук сама.
   };
+  audio.onerror = () => playbackFailed(id, session);
   render();
   try { await audio.play(); }
-  catch (error) { if (playbackSeq === session) { stopPlayback(); showToast('Браузер не смог воспроизвести файл.'); } }
+  catch (_) { playbackFailed(id, session); }
+}
+async function toggleTrack(id) {
+  if (playbackMode !== 'normal') {
+    playbackMode = 'normal'; queueCursor = 0; failedRadioIds.clear();
+  }
+  if (playingId === id) { stopPlayback(); return; }
+  await playTrack(id);
+}
+function setMode(targetMode) {
+  const next = playbackMode === targetMode ? 'normal' : targetMode;
+  stopPlayback(false);
+  playbackMode = next;
+  queueCursor = 0;
+  failedRadioIds.clear();
+  if (next !== 'normal' && !modeTracks().length) {
+    playbackMode = 'normal';
+    showToast('Добавь аудиофайлы, чтобы включить режим.');
+  }
+  render();
+  if (playbackMode === 'radio') void radioNext();
+}
+function queueStep() {
+  if (playbackMode !== 'queue') return;
+  if (playingId !== null) { stopPlayback(); return; }
+  const pool = modeTracks();
+  if (!pool.length) { showToast('Очередь пуста · добавь аудио'); return; }
+  const track = pool[queueCursor % pool.length];
+  queueCursor = (queueCursor + 1) % pool.length;
+  void playTrack(track.id);
+}
+async function radioNext() {
+  if (playbackMode !== 'radio') return;
+  const pool = modeTracks().filter(t => !failedRadioIds.has(t.id));
+  if (!pool.length) {
+    playbackMode = 'normal'; stopPlayback();
+    showToast('Радио остановлено: доступных звуков нет.');
+    return;
+  }
+  const other = pool.filter(t => t.id !== playingId);
+  const choices = other.length ? other : pool;
+  await playTrack(choices[Math.floor(Math.random() * choices.length)].id);
+}
+async function renameTrack(id, value) {
+  const track = tracks.find(t => t.id === id);
+  if (!track) return;
+  const nextName = value.trim().slice(0, 120);
+  if (nextName && nextName !== track.name) {
+    track.originalName ||= track.name; // Для файлов, добавленных до обновления.
+    track.name = nextName;
+    await persist({ putTracks: [track] }); // И браузер, и manifest.json при экспорте.
+  }
+  render();
+}
+function beginRenameTrack(id) {
+  const track = tracks.find(t => t.id === id);
+  const row = [...tracksNode.children].find(el => el.dataset.trackId === String(id));
+  const label = row?.querySelector('.track-name');
+  if (!track || !label) return;
+  const input = document.createElement('input');
+  input.type = 'text'; input.className = 'track-name-edit';
+  input.value = track.name; input.maxLength = 120;
+  input.setAttribute('aria-label', 'Название звука');
+  let finished = false;
+  function finish(save) {
+    if (finished) return;
+    finished = true;
+    if (save) void renameTrack(id, input.value); else render();
+  }
+  input.addEventListener('blur', () => finish(true), {once:true});
+  input.addEventListener('keydown', event => {
+    if (event.key === 'Enter') { event.preventDefault(); finish(true); }
+    else if (event.key === 'Escape') { event.preventDefault(); finish(false); }
+    event.stopPropagation();
+  });
+  label.replaceWith(input);
+  input.focus(); input.select();
 }
 
 async function addFiles(fileList) {
@@ -501,12 +683,14 @@ async function addFiles(fileList) {
       banks.splice(++targetIndex, 0, makeBank());
     }
     const bank = banks[targetIndex];
-    const track = { id: uid(), bankId: bank.id, order: bankTracks(bank.id).length, name: file.name, size: file.size, blob: file };
+    const track = { id: uid(), bankId: bank.id, order: bankTracks(bank.id).length, name: file.name, originalName: file.name, size: file.size, blob: file };
     tracks.push(track);
     added.push(track);
   }
   normaliseBanks();
   if (!firstFilled) activeBankId = added[0].bankId;
+  if (playbackMode === 'queue') { queueCursor = 0; stopPlayback(false); }
+  if (playbackMode === 'radio') failedRadioIds.clear();
   render();
   await persist({ putBanks: banks, putTracks: added });
   showToast('Добавлено звуков: ' + added.length + (valid.length < files.length ? ' · неаудиофайлы пропущены' : ''));
@@ -518,6 +702,8 @@ async function removeTrack(id) {
   tracks = tracks.filter(t => t.id !== id);
   const survivors = bankTracks(track.bankId);
   survivors.forEach((t,i) => t.order = i);
+  if (playbackMode === 'queue') { queueCursor = 0; stopPlayback(false); }
+  if (playbackMode === 'radio') { failedRadioIds.delete(id); if (playingId === null) void radioNext(); }
   render();
   await persist({ deleteTracks: [id], putTracks: survivors });
 }
@@ -530,6 +716,7 @@ async function moveTrack(id, delta) {
   const previous = { bankId: a.bankId, order: a.order };
   a.bankId = other.bankId; a.order = other.order;
   other.bankId = previous.bankId; other.order = previous.order;
+  if (playbackMode === 'queue') { queueCursor = 0; stopPlayback(false); }
   render();
   await persist({ putTracks: [a,other] });
 }
@@ -539,7 +726,7 @@ async function addPage() {
   banks.splice(currentIndex + 1, 0, bank);
   normaliseBanks();
   activeBankId = bank.id;
-  render();
+  if (!listMode) onPoolChanged(); else render();
   await persist({ putBanks: banks });
 }
 async function renameBank(id = activeBankId) {
@@ -562,12 +749,13 @@ async function deletePage() {
   tracks = tracks.filter(t => t.bankId !== bank.id);
   normaliseBanks();
   activeBankId = banks[Math.min(index, banks.length - 1)].id;
-  render();
+  if (!listMode) onPoolChanged(); else render();
   await persist({ deleteBanks: [bank.id], deleteTracks: selected.map(t => t.id), putBanks: banks });
 }
 async function clearAll() {
   if (!tracks.length || !confirm('Удалить все загруженные звуки и страницы?')) return;
-  stopPlayback();
+  stopPlayback(false);
+  playbackMode = 'normal'; queueCursor = 0; failedRadioIds.clear();
   banks = [];
   const bank = makeBank();
   banks = [bank]; tracks = []; activeBankId = bank.id;
@@ -700,7 +888,7 @@ async function exportArchive(scope) {
       for (const track of bankTracks(bank.id)) {
         const path = 'audio/' + String(++i).padStart(5, '0') + '.bin';
         entries.push({ path, blob: track.blob });
-        group.tracks.push({ name: track.name, file: path, size: track.blob.size, type: track.blob.type || mimeFor(track.name) });
+        group.tracks.push({ name: track.name, originalName: track.originalName || track.name, file: path, size: track.blob.size, type: track.blob.type || mimeFor(track.originalName || track.name) });
       }
       manifest.banks.push(group);
     }
@@ -739,17 +927,20 @@ async function importArchive(file, mode) {
       for (const entry of record.tracks) {
         if (!entry || typeof entry.name !== 'string' || typeof entry.file !== 'string' || !/^audio\/[\w-]+\.bin$/.test(entry.file) || seenFiles.has(entry.file)) throw new Error('Повреждён список звуков');
         seenFiles.add(entry.file);
-        const name = entry.name.slice(0,512);
-        const blob = await zip.getBlob(entry.file, mimeFor(name));
+        const name = entry.name.trim().slice(0,120) || 'Без названия';
+        const originalName = typeof entry.originalName === 'string' ? entry.originalName.slice(0,512) : entry.name.slice(0,512);
+        const safeType = typeof entry.type === 'string' && /^audio\/[a-z0-9.+-]+$/i.test(entry.type) ? entry.type : mimeFor(originalName);
+        const blob = await zip.getBlob(entry.file, safeType);
         if (blob.size !== entry.size) throw new Error('Несовпадение размера ' + name);
-        importedTracks.push({ id: uid(), bankId: bank.id, name, size: blob.size, blob, order: bankTracksFromImport(importedTracks, bank.id) });
+        importedTracks.push({ id: uid(), bankId: bank.id, name, originalName, size: blob.size, blob, order: bankTracksFromImport(importedTracks, bank.id) });
       }
     }
     if (mode === 'all') {
       if (tracks.length && !confirm(`Заменить текущие ${tracks.length} звуков архивом (${importedTracks.length} звуков)? Это удалит текущий набор.`)) return;
       importedBanks.forEach((bank,i) => bank.order = i);
       if (!(await persist({ clear: true, putBanks: importedBanks, putTracks: importedTracks }))) throw new Error('Импорт не сохранён');
-      stopPlayback();
+      stopPlayback(false);
+      playbackMode = 'normal'; queueCursor = 0; failedRadioIds.clear();
       banks = importedBanks; tracks = importedTracks; activeBankId = banks[0].id;
     } else {
       const index = banks.findIndex(bank => bank.id === activeBankId);
@@ -758,6 +949,7 @@ async function importArchive(file, mode) {
       proposedBanks.forEach((bank,i) => bank.order = i);
       if (!(await persist({ putBanks: proposedBanks, putTracks: importedTracks }))) throw new Error('Импорт не сохранён');
       banks = proposedBanks; tracks.push(...importedTracks); activeBankId = importedBanks[0].id;
+      if (playbackMode !== 'normal') onPoolChanged();
     }
     render();
     showToast('Импортировано: ' + importedTracks.length + ' звуков · ' + importedBanks.length + ' страниц');
@@ -769,7 +961,12 @@ function bankTracksFromImport(importedTracks, bankId) { return importedTracks.fi
 
 $('addBtn').addEventListener('click', () => fileInput.click());
 fileInput.addEventListener('change', async () => { await addFiles(fileInput.files); fileInput.value = ''; });
-$('stopBtn').addEventListener('click', () => { if (playingId !== null) stopPlayback(); });
+$('stopBtn').addEventListener('click', () => {
+  if (playbackMode === 'radio') setMode('radio');
+  else if (playingId !== null) stopPlayback();
+});
+$('queueBtn').addEventListener('click', () => setMode('queue'));
+$('radioBtn').addEventListener('click', () => setMode('radio'));
 $('clearBtn').addEventListener('click', clearAll);
 $('addPageBtn').addEventListener('click', addPage);
 $('renamePageBtn').addEventListener('click', () => renameBank());
@@ -777,7 +974,7 @@ $('deletePageBtn').addEventListener('click', deletePage);
 $('listMode').addEventListener('change', event => {
   listMode = event.target.checked;
   try { localStorage.setItem('simple-sound-list-mode', listMode ? '1' : '0'); } catch (_) {}
-  render();
+  onPoolChanged();
 });
 $('exportPageBtn').addEventListener('click', () => { $('exportMenu').open = false; exportArchive('page'); });
 $('exportAllBtn').addEventListener('click', () => { $('exportMenu').open = false; exportArchive('all'); });
@@ -794,23 +991,41 @@ document.addEventListener('keydown', event => {
   if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
   const target = event.target;
   const editable = target && (target.matches('input[type="text"], input[type="search"], input[type="number"], textarea, select') || target.isContentEditable);
-  if (event.key === 'Tab' && !editable) {
-    event.preventDefault();
-    changeBank(event.shiftKey ? -1 : 1);
+  if (editable) return;
+  // Физические S/R работают и на русской раскладке (Ы/К).
+  if (!event.shiftKey && (event.code === 'KeyS' || event.key.toLowerCase() === 's')) {
+    event.preventDefault(); setMode('queue'); return;
+  }
+  if (!event.shiftKey && (event.code === 'KeyR' || event.key.toLowerCase() === 'r')) {
+    event.preventDefault(); setMode('radio'); return;
+  }
+  if (event.key === 'Tab') {
+    event.preventDefault(); changeBank(event.shiftKey ? -1 : 1); return;
+  }
+  if (event.shiftKey) return;
+  if (playbackMode === 'radio' && event.key === 'Backspace') {
+    event.preventDefault(); setMode('radio'); return;
+  }
+  if (event.code === 'Space' || event.key === ' ') {
+    if (playbackMode === 'queue') { event.preventDefault(); queueStep(); return; }
+    if (playbackMode === 'radio') { event.preventDefault(); void radioNext(); return; }
+    if (playingId !== null && !(target && target.closest('button, summary, a, input, label'))) {
+      event.preventDefault(); stopPlayback();
+    }
     return;
   }
-  if (editable || event.shiftKey) return;
-  if (/^[1-9]$/.test(event.key) || event.key === '0') {
-    const index = event.key === '0' ? 9 : Number(event.key) - 1;
+  const digit = event.code.match(/^(?:Digit|Numpad)([0-9])$/);
+  const key = digit ? digit[1] : event.key;
+  if (/^[0-9]$/.test(key)) {
+    const index = key === '0' ? 9 : Number(key) - 1;
     const track = bankTracks(activeBankId)[index];
-    if (track) { event.preventDefault(); toggleTrack(track.id); }
+    if (track) { event.preventDefault(); void toggleTrack(track.id); }
   } else if (event.key === 'Escape') {
     for (const menu of document.querySelectorAll('.menu[open]')) menu.open = false;
     if (playingId !== null) { event.preventDefault(); stopPlayback(); }
-  } else if (event.key === ' ' && !(target && target.closest('button, summary, a, input, label'))) {
-    if (playingId !== null) { event.preventDefault(); stopPlayback(); }
   }
 });
+
 // Звуки можно закидывать пачкой в любую область страницы.
 const isFileDrag = event => event.dataTransfer && [...event.dataTransfer.types].includes('Files');
 document.addEventListener('dragenter', event => {
@@ -867,7 +1082,7 @@ async function initialize() {
   } catch (error) {
     console.warn('Storage unavailable:', error);
     db = null; banks = [makeBank()]; tracks = [];
-    $('storageInfo').textContent = 'Автосохранение недоступно · Esc или Space — стоп';
+    $('storageInfo').textContent = 'Автосохранение недоступно · Экспорт ZIP сохранит звуки и названия';
     showToast('Сохранение недоступно. Звуки работают до закрытия вкладки.');
   }
   try {
