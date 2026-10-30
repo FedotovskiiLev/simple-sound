@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101113">
+  <meta name="description" content="simple sound — минималистичный звуковой пульт прямо в браузере.">
+  <title>simple sound</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101113;
+      --surface: #191b1e;
+      --surface-hover: #202227;
+      --border: #303238;
+      --text: #f4f4f0;
+      --muted: #95979b;
+      --accent: #d1fc83;
+      --accent-ink: #192213;
+      --danger: #ff827e;
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, label:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+    .app { max-width: 960px; margin: 0 auto; padding: 56px 28px 38px; }
+    .topline { display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+    .brand { display: flex; align-items: center; gap: 13px; }
+    .mark { width: 25px; height: 25px; display: flex; justify-content: center; align-items: center; gap: 3px; }
+    .mark span { width: 4px; border-radius: 6px; background: var(--accent); }
+    .mark span:nth-child(1), .mark span:nth-child(5) { height: 9px; }
+    .mark span:nth-child(2), .mark span:nth-child(4) { height: 19px; }
+    .mark span:nth-child(3) { height: 27px; }
+    h1 { margin: 0; font-size: 26px; font-weight: 730; letter-spacing: -1.2px; }
+    .tag { color: var(--muted); font-size: 12px; border: 1px solid var(--border); padding: 7px 11px; border-radius: 999px; white-space: nowrap; }
+    .lead { margin: 12px 0 38px; font-size: 14px; color: var(--muted); line-height: 1.6; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 25px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; border: 1px solid var(--border); border-radius: 11px; padding: 12px 17px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 14px; font-weight: 620; line-height: 1.2; transition: background .15s, border-color .15s, transform .15s; user-select: none; }
+    .btn:hover { background: var(--surface-hover); border-color: #56595f; }
+    .btn:active { transform: scale(.98); }
+    .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+    .btn.primary:hover { background: #e1ffae; border-color: #e1ffae; }
+    .btn:disabled { opacity: .35; cursor: default; transform: none; }
+    .btn:disabled:hover { background: var(--surface); border-color: var(--border); }
+    .btn svg { width: 17px; height: 17px; flex: 0 0 auto; }
+    .divider { height: 1px; background: var(--border); margin: 0 0 21px; }
+    .list-head { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 13px; }
+    h2 { font-size: 13px; font-weight: 650; letter-spacing: .02em; margin: 0; }
+    .list-head .hint { font-size: 12px; color: var(--muted); }
+    kbd { display: inline-grid; min-width: 24px; height: 24px; place-items: center; border-radius: 6px; border: 1px solid #41444a; background: #25272b; font: 600 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #cfd0d1; padding: 0 5px; }
+    .empty { border: 1px dashed #414348; border-radius: var(--radius); min-height: 262px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 13px; padding: 30px; text-align: center; color: var(--muted); transition: background .15s, border-color .15s; }
+    .empty svg { width: 33px; height: 33px; stroke: #a4a6ab; }
+    .empty strong { font-size: 15px; font-weight: 650; color: var(--text); }
+    .empty small { font-size: 13px; line-height: 1.5; }
+    .empty.is-dragging { border-color: var(--accent); background: #1c251b; }
+    .tracks { display: grid; gap: 8px; }
+    .track { min-height: 76px; display: flex; align-items: center; gap: 13px; padding: 12px 13px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; transition: background .12s, border-color .12s; }
+    .track:hover { background: var(--surface-hover); }
+    .track.playing { border-color: #698044; background: #1d241b; }
+    .keycap { width: 33px; height: 33px; border: 1px solid #3c4045; border-radius: 8px; color: #a7a9ac; background: #24262a; display: grid; place-items: center; font: 600 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; flex: 0 0 auto; }
+    .track.playing .keycap { color: var(--accent); border-color: #657d43; background: #2a3423; }
+    .track-info { min-width: 0; flex: 1; }
+    .track-name { display: block; font-size: 14px; font-weight: 610; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .track-meta { display: block; font-size: 11px; color: var(--muted); margin-top: 6px; letter-spacing: .02em; }
+    .playing .track-meta { color: #b0cd85; }
+    .actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+    .icon-btn { height: 34px; width: 31px; padding: 0; border: 1px solid transparent; display: grid; place-items: center; border-radius: 8px; background: transparent; color: #92959b; cursor: pointer; }
+    .icon-btn svg { height: 16px; width: 16px; }
+    .icon-btn:hover { background: #33353a; color: var(--text); }
+    .icon-btn.remove:hover { color: var(--danger); background: #382326; }
+    .icon-btn:disabled { opacity: .2; cursor: default; background: transparent; }
+    .play-btn { background: #32363a; border: 1px solid #414448; border-radius: 9px; color: white; min-width: 95px; height: 38px; display: inline-flex; justify-content: center; align-items: center; gap: 9px; font-size: 13px; font-weight: 660; cursor: pointer; }
+    .play-btn:hover { background: #43464b; }
+    .playing .play-btn { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+    .playing .play-btn:hover { background: #e1ffae; }
+    .play-symbol { display: inline-block; height: 0; width: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 8px solid currentColor; }
+    .playing .play-symbol { height: 10px; width: 10px; border: 0; background: currentColor; border-radius: 1px; }
+    .bottom { margin-top: 25px; display: flex; align-items: center; justify-content: space-between; gap: 15px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .bottom button { padding: 0; border: 0; background: none; color: #b6b7bc; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: 12px; }
+    .bottom button:hover { color: var(--danger); }
+    .bottom button:disabled { opacity: .3; cursor: default; }
+    .drop-overlay { position: fixed; z-index: 20; inset: 12px; background: rgba(20,29,19,.97); border: 2px dashed var(--accent); border-radius: 18px; display: none; align-items: center; justify-content: center; text-align: center; pointer-events: none; }
+    .drop-overlay.visible { display: flex; }
+    .drop-overlay strong { color: var(--accent); font-size: clamp(22px, 5vw, 38px); letter-spacing: -.04em; }
+    .toast { position: fixed; bottom: 28px; left: 50%; transform: translate(-50%, 15px); max-width: min(420px, calc(100vw - 36px)); padding: 12px 17px; background: #33373c; color: #fff; font-size: 13px; border: 1px solid #51555c; border-radius: 11px; box-shadow: 0 9px 38px #0007; text-align: center; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 30; }
+    .toast.visible { opacity: 1; transform: translate(-50%, 0); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    @media (max-width: 640px) {
+      .app { padding: 30px 15px 26px; }
+      h1 { font-size: 24px; }
+      .tag { display: none; }
+      .lead { margin-bottom: 25px; }
+      .toolbar .btn { flex: 1; padding: 12px 11px; }
+      .list-head .hint { font-size: 11px; }
+      .track { gap: 9px; padding: 10px 9px; }
+      .keycap { width: 29px; height: 31px; }
+      .play-btn { min-width: 66px; padding: 0 9px; }
+      .actions { gap: 0; }
+      .icon-btn { width: 26px; }
+      .bottom { align-items: flex-start; flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="topline">
+      <div class="brand">
+        <div class="mark" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+        <h1>simple sound</h1>
+      </div>
+      <span class="tag">just press play.</span>
+    </div>
+    <p class="lead">Минималистичный звуковой пульт. Никаких аккаунтов, серверов и лишних кнопок.</p>
+
+    <div class="toolbar">
+      <button class="btn primary" id="addBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        Добавить аудио
+      </button>
+      <button class="btn" id="stopBtn" type="button" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+        Стоп
+      </button>
+      <input type="file" id="fileInput" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.opus,.webm,.aiff" multiple hidden>
+    </div>
+
+    <div class="divider"></div>
+    <div class="list-head">
+      <h2>Звуки <span id="counter" style="color:var(--muted);font-weight:500">· 0</span></h2>
+      <span class="hint">Клавиши <kbd>1</kbd>–<kbd>9</kbd> <kbd>0</kbd> — вкл/выкл</span>
+    </div>
+
+    <div id="empty" class="empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      <strong>Пока нет звуков</strong>
+      <small>Перетащи аудиофайлы сюда или нажми «Добавить аудио»<br>Можно загрузить сразу несколько файлов.</small>
+    </div>
+    <div id="tracks" class="tracks" aria-label="Список звуков"></div>
+
+    <div class="bottom">
+      <span id="storageInfo">Файлы сохраняются в этом браузере · <kbd>Esc</kbd> или <kbd>Space</kbd> — стоп</span>
+      <button type="button" id="clearBtn" disabled>Удалить все</button>
+    </div>
+  </main>
+
+  <div id="overlay" class="drop-overlay" aria-hidden="true"><strong>Отпусти, чтобы добавить звуки</strong></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    'use strict';
+
+    const $ = id => document.getElementById(id);
+    const fileInput = $('fileInput');
+    const tracksNode = $('tracks');
+    const audio = new Audio();
+    audio.preload = 'auto';
+
+    let db = null;
+    let tracks = [];
+    let playingId = null;
+    let activeUrl = null;
+    let playbackSeq = 0;
+    let toastTimeout;
+    let dragDepth = 0;
+
+    // Все аудиофайлы хранятся локально в IndexedDB — на сервер ничего не отправляется.
+    function openDatabase() {
+      return new Promise((resolve, reject) => {
+        if (!window.indexedDB) return reject(new Error('IndexedDB недоступна'));
+        const req = indexedDB.open('simple-sound-storage', 1);
+        req.onupgradeneeded = () => {
+          const database = req.result;
+          if (!database.objectStoreNames.contains('tracks')) database.createObjectStore('tracks', { keyPath: 'id' });
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+        req.onblocked = () => reject(new Error('База данных заблокирована другой вкладкой'));
+      });
+    }
+
+    function readAll() {
+      return new Promise((resolve, reject) => {
+        const req = db.transaction('tracks', 'readonly').objectStore('tracks').getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    function writeBatch(records) {
+      if (!db || !records.length) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('tracks', 'readwrite');
+        const store = tx.objectStore('tracks');
+        for (const record of records) store.put(record);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error('Сохранение прервано'));
+      });
+    }
+
+    function deleteOne(id) {
+      if (!db) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('tracks', 'readwrite');
+        tx.objectStore('tracks').delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error('Удаление прервано'));
+      });
+    }
+
+    function clearDatabase() {
+      if (!db) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('tracks', 'readwrite');
+        tx.objectStore('tracks').clear();
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error('Очистка прервана'));
+      });
+    }
+
+    function showToast(message) {
+      const node = $('toast');
+      node.textContent = message;
+      node.classList.add('visible');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => node.classList.remove('visible'), 3200);
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024 * 1024) return Math.max(1, Math.round(bytes / 1024)) + ' КБ';
+      return (bytes / (1024 * 1024)).toFixed(1).replace('.', ',') + ' МБ';
+    }
+
+    function makeIcon(type) {
+      const shapes = {
+        up: '<path d="M12 19V5M5 12l7-7 7 7"/>',
+        down: '<path d="M12 5v14m7-7-7 7-7-7"/>',
+        trash: '<path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m5 4v6m4-6v6"/>'
+      };
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', 'currentColor');
+      svg.setAttribute('stroke-width', '1.7');
+      svg.setAttribute('stroke-linecap', 'round');
+      svg.setAttribute('stroke-linejoin', 'round');
+      svg.innerHTML = shapes[type];
+      svg.setAttribute('aria-hidden', 'true');
+      return svg;
+    }
+
+    function iconButton(icon, title, onClick, disabled = false, className = '') {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'icon-btn ' + className;
+      button.title = title;
+      button.setAttribute('aria-label', title);
+      button.disabled = disabled;
+      button.append(makeIcon(icon));
+      button.addEventListener('click', onClick);
+      return button;
+    }
+
+    function render() {
+      $('empty').hidden = tracks.length > 0;
+      // CSS display:flex в .empty переопределяет [hidden] в некоторых браузерах.
+      $('empty').style.display = tracks.length ? 'none' : 'flex';
+      $('counter').textContent = '· ' + tracks.length;
+      $('stopBtn').disabled = playingId === null;
+      $('clearBtn').disabled = !tracks.length;
+      const fragment = document.createDocumentFragment();
+
+      tracks.forEach((track, index) => {
+        const playing = playingId === track.id;
+        const row = document.createElement('div');
+        row.className = 'track' + (playing ? ' playing' : '');
+
+        const key = document.createElement('span');
+        key.className = 'keycap';
+        key.textContent = index < 9 ? String(index + 1) : (index === 9 ? '0' : '—');
+        key.title = index < 10 ? 'Горячая клавиша' : 'Перемести выше, чтобы назначить клавишу';
+
+        const info = document.createElement('div');
+        info.className = 'track-info';
+        const name = document.createElement('span');
+        name.className = 'track-name';
+        name.textContent = track.name;
+        name.title = track.name;
+        const meta = document.createElement('span');
+        meta.className = 'track-meta';
+        meta.textContent = playing ? '● Воспроизводится' : formatSize(track.size);
+        info.append(name, meta);
+
+        const controls = document.createElement('div');
+        controls.className = 'actions';
+        const play = document.createElement('button');
+        play.className = 'play-btn';
+        play.type = 'button';
+        play.setAttribute('aria-label', (playing ? 'Остановить ' : 'Воспроизвести ') + track.name);
+        const symbol = document.createElement('span');
+        symbol.className = 'play-symbol';
+        symbol.setAttribute('aria-hidden', 'true');
+        const label = document.createElement('span');
+        label.textContent = playing ? 'Стоп' : 'Играть';
+        play.append(symbol, label);
+        play.addEventListener('click', () => toggleTrack(track.id));
+
+        controls.append(
+          play,
+          iconButton('up', 'Переместить выше', () => moveTrack(index, -1), index === 0),
+          iconButton('down', 'Переместить ниже', () => moveTrack(index, 1), index === tracks.length - 1),
+          iconButton('trash', 'Удалить звук', () => removeTrack(track.id), false, 'remove')
+        );
+        row.append(key, info, controls);
+        fragment.appendChild(row);
+      });
+      tracksNode.replaceChildren(fragment);
+    }
+
+    function stopPlayback() {
+      playbackSeq++;
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+      if (activeUrl) URL.revokeObjectURL(activeUrl);
+      activeUrl = null;
+      playingId = null;
+      render();
+    }
+
+    async function toggleTrack(id) {
+      if (playingId === id) {
+        stopPlayback();
+        return;
+      }
+      const track = tracks.find(t => t.id === id);
+      if (!track) return;
+      stopPlayback();
+      const session = ++playbackSeq;
+      playingId = id;
+      activeUrl = URL.createObjectURL(track.blob);
+      audio.src = activeUrl;
+      audio.currentTime = 0;
+      audio.onended = () => { if (playbackSeq === session) stopPlayback(); };
+      audio.onerror = () => {
+        if (playbackSeq === session) {
+          stopPlayback();
+          showToast('Не удалось воспроизвести файл. Проверь формат аудио.');
+        }
+      };
+      render();
+      try {
+        await audio.play();
+      } catch (error) {
+        if (playbackSeq === session) {
+          stopPlayback();
+          showToast('Браузер не смог воспроизвести этот файл.');
+        }
+      }
+    }
+
+    async function addFiles(list) {
+      const files = [...list];
+      const allowed = /\.(mp3|wav|ogg|m4a|aac|flac|opus|webm|aiff|aif|mp4)$/i;
+      const valid = files.filter(f => f.type.startsWith('audio/') || allowed.test(f.name));
+      if (!valid.length) {
+        if (files.length) showToast('Выбери аудиофайлы (MP3, WAV, OGG и т. д.).');
+        return;
+      }
+      const startingOrder = tracks.length;
+      const records = valid.map((f, index) => ({
+        id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now() + '-' + Math.random(),
+        name: f.name,
+        size: f.size,
+        blob: f,
+        order: startingOrder + index
+      }));
+      tracks.push(...records);
+      render();
+      try {
+        await writeBatch(records);
+        showToast('Добавлено звуков: ' + records.length);
+      } catch (error) {
+        console.error(error);
+        showToast('Звуки добавлены, но не сохранились. Возможно, закончилось место.');
+      }
+      if (valid.length !== files.length) showToast('Некоторые файлы пропущены: это не аудио.');
+    }
+
+    async function removeTrack(id) {
+      if (playingId === id) stopPlayback();
+      tracks = tracks.filter(t => t.id !== id);
+      tracks.forEach((t, i) => { t.order = i; });
+      render();
+      try {
+        await deleteOne(id);
+        await writeBatch(tracks);
+      } catch (error) {
+        console.error(error);
+        showToast('Не удалось обновить сохранённый список.');
+      }
+    }
+
+    async function moveTrack(index, delta) {
+      const next = index + delta;
+      if (next < 0 || next >= tracks.length) return;
+      [tracks[index], tracks[next]] = [tracks[next], tracks[index]];
+      tracks.forEach((t, i) => { t.order = i; });
+      render();
+      try { await writeBatch(tracks); }
+      catch (error) { console.error(error); showToast('Не удалось сохранить порядок звуков.'); }
+    }
+
+    $('addBtn').addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async () => {
+      await addFiles(fileInput.files);
+      fileInput.value = '';
+    });
+    $('stopBtn').addEventListener('click', () => { if (playingId !== null) stopPlayback(); });
+    $('clearBtn').addEventListener('click', async () => {
+      if (!tracks.length || !confirm('Удалить все загруженные звуки?')) return;
+      stopPlayback();
+      tracks = [];
+      render();
+      try { await clearDatabase(); showToast('Все звуки удалены.'); }
+      catch (error) { console.error(error); showToast('Не удалось очистить сохранённые звуки.'); }
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
+      const target = event.target;
+      if (target && (target.matches('input, textarea, select, button') || target.isContentEditable)) return;
+      if (/^[1-9]$/.test(event.key) || event.key === '0') {
+        const index = event.key === '0' ? 9 : Number(event.key) - 1;
+        if (tracks[index]) { event.preventDefault(); toggleTrack(tracks[index].id); }
+      } else if (event.key === 'Escape' || event.key === ' ') {
+        if (playingId !== null) { event.preventDefault(); stopPlayback(); }
+      }
+    });
+
+    // Перетаскивание пачки файлов в любую область вкладки.
+    const isFileDrag = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+    document.addEventListener('dragenter', event => {
+      if (!isFileDrag(event)) return;
+      event.preventDefault();
+      dragDepth++;
+      $('overlay').classList.add('visible');
+    });
+    document.addEventListener('dragover', event => {
+      if (!isFileDrag(event)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'copy';
+    });
+    document.addEventListener('dragleave', event => {
+      if (!isFileDrag(event)) return;
+      dragDepth = Math.max(0, dragDepth - 1);
+      if (!dragDepth) $('overlay').classList.remove('visible');
+    });
+    document.addEventListener('drop', event => {
+      event.preventDefault();
+      dragDepth = 0;
+      $('overlay').classList.remove('visible');
+      if (event.dataTransfer && event.dataTransfer.files.length) addFiles(event.dataTransfer.files);
+    });
+    window.addEventListener('blur', () => {
+      dragDepth = 0;
+      $('overlay').classList.remove('visible');
+    });
+
+    async function initialize() {
+      try {
+        db = await openDatabase();
+        tracks = await readAll();
+        tracks.sort((a, b) => a.order - b.order);
+      } catch (error) {
+        console.warn('Storage unavailable:', error);
+        db = null;
+        $('storageInfo').textContent = 'Сохранение в браузере недоступно · Esc или Space — стоп';
+        showToast('Автосохранение недоступно. Звуки работают до закрытия страницы.');
+      }
+      render();
+    }
+    initialize();
+  </script>
+</body>
+</html>
