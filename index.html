@@ -112,6 +112,47 @@
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { transition: none !important; }
     }
+    /* Pages and portable sound sets */
+    .file-menu { display: flex; gap: 10px; flex-wrap: wrap; }
+    .menu { position: relative; }
+    .menu > summary { list-style: none; }
+    .menu > summary::-webkit-details-marker { display: none; }
+    .menu > summary::after { content: '⌄'; color: var(--muted); font-size: 16px; margin-left: 4px; }
+    .menu-popover { position: absolute; top: calc(100% + 7px); left: 0; z-index: 12; min-width: 232px; padding: 5px; background: #292c30; border: 1px solid #474a50; border-radius: 11px; box-shadow: 0 15px 40px #0008; }
+    .menu-popover button { display: block; width: 100%; padding: 12px 10px; border: 0; border-radius: 7px; background: transparent; text-align: left; color: var(--text); font-size: 13px; cursor: pointer; white-space: nowrap; }
+    .menu-popover button:hover { background: #3a3d43; }
+    .menu-popover button:disabled { opacity: .3; cursor: default; }
+    .page-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 18px; }
+    .page-section { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+    .page-tabs { display: flex; align-items: center; gap: 7px; overflow: auto; scrollbar-width: thin; padding: 3px 0; min-width: 0; }
+    .page-tab { flex-shrink: 0; display: inline-flex; gap: 9px; align-items: center; max-width: 235px; padding: 10px 12px; color: #aaaeb3; font-size: 13px; font-weight: 620; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; cursor: pointer; }
+    .page-tab:hover { color: var(--text); background: var(--surface-hover); }
+    .page-tab.active { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+    .tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tab-count { flex: 0 0 auto; font-size: 11px; font-weight: 500; opacity: .6; }
+    .page-add { flex: 0 0 auto; border: 1px dashed #4b4e53; background: transparent; color: #c6c8cb; border-radius: 9px; padding: 10px 12px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+    .page-add:hover { border-color: var(--accent); color: var(--accent); }
+    .page-actions > summary { width: 35px; min-width: 35px; padding: 8px 0; border: 1px solid var(--border); background: var(--surface); border-radius: 9px; color: #cacdd1; text-align: center; cursor: pointer; }
+    .page-actions .menu-popover { left: auto; right: 0; }
+    .list-toggle { display: inline-flex; align-items: center; gap: 8px; color: #c1c3c5; font-size: 12px; cursor: pointer; user-select: none; white-space: nowrap; }
+    .list-toggle input { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+    .subline { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin: -7px 0 20px; color: var(--muted); font-size: 12px; }
+    .subline .shortcut { white-space: nowrap; }
+    .now-playing { color: #b0cd85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 50%; }
+    .track.armed:not(.playing) { border-color: #48543d; }
+    [hidden] { display: none !important; }
+    @media (max-width: 640px) {
+      .file-menu { width: 100%; }
+      .file-menu .menu { flex: 1; }
+      .file-menu .btn { width: 100%; }
+      .page-tools { align-items: flex-start; }
+      .page-section { order: 2; flex-basis: 100%; }
+      .page-tabs { flex: 1; }
+      .menu-popover { min-width: 190px; }
+      .subline { flex-wrap: wrap; }
+      .now-playing { max-width: 100%; }
+      .list-head .hint { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -134,18 +175,55 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
         Стоп
       </button>
+      <div class="file-menu">
+        <details class="menu" id="exportMenu">
+          <summary class="btn">Экспорт</summary>
+          <div class="menu-popover">
+            <button type="button" id="exportPageBtn">Текущую страницу · ZIP</button>
+            <button type="button" id="exportAllBtn">Все страницы · ZIP</button>
+          </div>
+        </details>
+        <details class="menu" id="importMenu">
+          <summary class="btn">Импорт</summary>
+          <div class="menu-popover">
+            <button type="button" id="importPageBtn">Добавить страницу из ZIP</button>
+            <button type="button" id="importAllBtn">Восстановить всё из ZIP</button>
+          </div>
+        </details>
+      </div>
       <input type="file" id="fileInput" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.opus,.webm,.aiff" multiple hidden>
+      <input type="file" id="importPageInput" accept=".zip,application/zip" hidden>
+      <input type="file" id="importAllInput" accept=".zip,application/zip" hidden>
+    </div>
+    <div class="page-tools">
+      <div class="page-section" id="pageSection">
+        <div id="pageTabs" class="page-tabs" aria-label="Страницы звуков"></div>
+        <button id="addPageBtn" type="button" class="page-add">+ Страница</button>
+        <details class="menu page-actions" id="pageMenu">
+          <summary aria-label="Действия со страницей" title="Действия со страницей">···</summary>
+          <div class="menu-popover">
+            <button type="button" id="renamePageBtn">Переименовать страницу</button>
+            <button type="button" id="deletePageBtn">Удалить страницу</button>
+          </div>
+        </details>
+      </div>
+      <label class="list-toggle"><input type="checkbox" id="listMode"> Всё одним списком</label>
+    </div>
+    <div class="subline">
+      <span><span id="pageCount">1 страница</span> · горячие клавиши: <strong id="hotkeyBank" style="color:var(--text);font-weight:550">Страница 1</strong></span>
+      <span class="shortcut"><kbd>Tab</kbd> дальше · <kbd>Shift</kbd>+<kbd>Tab</kbd> назад</span>
+      <span class="now-playing" id="nowPlaying" hidden></span>
     </div>
 
     <div class="divider"></div>
     <div class="list-head">
       <h2>Звуки <span id="counter" style="color:var(--muted);font-weight:500">· 0</span></h2>
-      <span class="hint">Клавиши <kbd>1</kbd>–<kbd>9</kbd> <kbd>0</kbd> — вкл/выкл</span>
+      <span class="hint"><kbd>1</kbd>–<kbd>9</kbd> <kbd>0</kbd> — вкл/выкл · <kbd>Esc</kbd> — стоп</span>
     </div>
 
     <div id="empty" class="empty">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-      <strong>Пока нет звуков</strong>
+      <strong id="emptyTitle">Пока нет звуков</strong>
       <small>Перетащи аудиофайлы сюда или нажми «Добавить аудио»<br>Можно загрузить сразу несколько файлов.</small>
     </div>
     <div id="tracks" class="tracks" aria-label="Список звуков"></div>
@@ -160,342 +238,645 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script>
-    'use strict';
+'use strict';
 
-    const $ = id => document.getElementById(id);
-    const fileInput = $('fileInput');
-    const tracksNode = $('tracks');
-    const audio = new Audio();
-    audio.preload = 'auto';
+const $ = id => document.getElementById(id);
+const audio = new Audio();
+audio.preload = 'auto';
+const fileInput = $('fileInput');
+const tracksNode = $('tracks');
+const HOTKEYS = ['1','2','3','4','5','6','7','8','9','0'];
+const AUDIO_EXT = /\.(mp3|wav|ogg|m4a|aac|flac|opus|webm|aiff|aif|mp4)$/i;
 
-    let db = null;
-    let tracks = [];
-    let playingId = null;
-    let activeUrl = null;
-    let playbackSeq = 0;
-    let toastTimeout;
-    let dragDepth = 0;
+let db = null;
+let saveQueue = Promise.resolve();
+let banks = [];
+let tracks = [];
+let activeBankId = null;
+let listMode = false;
+let playingId = null;
+let activeUrl = null;
+let playbackSeq = 0;
+let toastTimeout;
+let dragDepth = 0;
+let busy = false;
 
-    // Все аудиофайлы хранятся локально в IndexedDB — на сервер ничего не отправляется.
-    function openDatabase() {
-      return new Promise((resolve, reject) => {
-        if (!window.indexedDB) return reject(new Error('IndexedDB недоступна'));
-        const req = indexedDB.open('simple-sound-storage', 1);
-        req.onupgradeneeded = () => {
-          const database = req.result;
-          if (!database.objectStoreNames.contains('tracks')) database.createObjectStore('tracks', { keyPath: 'id' });
-        };
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-        req.onblocked = () => reject(new Error('База данных заблокирована другой вкладкой'));
-      });
+function uid() {
+  return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+}
+function makeBank() {
+  let n = 1;
+  while (banks.some(b => b.name === 'Страница ' + n)) n++;
+  return { id: uid(), name: 'Страница ' + n, order: banks.length };
+}
+function activeBank() { return banks.find(b => b.id === activeBankId) || banks[0]; }
+function bankTracks(id) { return tracks.filter(t => t.bankId === id).sort((a,b) => a.order - b.order); }
+function orderedTracks() { return banks.flatMap(b => bankTracks(b.id)); }
+function normaliseBanks() { banks.forEach((b,i) => b.order = i); }
+function showToast(message) {
+  $('toast').textContent = message;
+  $('toast').classList.add('visible');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => $('toast').classList.remove('visible'), 3900);
+}
+function formatSize(bytes) {
+  return bytes < 1048576 ? Math.max(1, Math.round(bytes / 1024)) + ' КБ' : (bytes / 1048576).toFixed(1).replace('.', ',') + ' МБ';
+}
+function setActive(id) {
+  if (!banks.some(b => b.id === id)) return;
+  activeBankId = id;
+  try { localStorage.setItem('simple-sound-active-bank', id); } catch (_) {}
+  render();
+}
+function openDatabase() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) return reject(new Error('IndexedDB недоступна'));
+    const request = indexedDB.open('simple-sound-storage', 2);
+    request.onupgradeneeded = () => {
+      const database = request.result;
+      if (!database.objectStoreNames.contains('tracks')) database.createObjectStore('tracks', { keyPath: 'id' });
+      if (!database.objectStoreNames.contains('banks')) database.createObjectStore('banks', { keyPath: 'id' });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(new Error('Закрой другие вкладки с прежней версией simple sound'));
+  });
+}
+function loadDatabase() {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(['banks','tracks'], 'readonly');
+    const bankReq = tx.objectStore('banks').getAll();
+    const trackReq = tx.objectStore('tracks').getAll();
+    tx.oncomplete = () => resolve({ banks: bankReq.result, tracks: trackReq.result });
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+}
+// Все изменения двух таблиц сохраняются одной транзакцией и последовательно.
+function saveChanges(change = {}) {
+  if (!db) return Promise.resolve();
+  const snapshot = {
+    clear: !!change.clear,
+    putBanks: (change.putBanks || []).map(b => ({id: b.id, name: b.name, order: b.order})),
+    putTracks: (change.putTracks || []).map(t => ({id: t.id, name: t.name, size: t.size, blob: t.blob, bankId: t.bankId, order: t.order})),
+    deleteBanks: [...(change.deleteBanks || [])],
+    deleteTracks: [...(change.deleteTracks || [])]
+  };
+  saveQueue = saveQueue.catch(() => {}).then(() => new Promise((resolve, reject) => {
+    const tx = db.transaction(['banks','tracks'], 'readwrite');
+    const bs = tx.objectStore('banks');
+    const ts = tx.objectStore('tracks');
+    if (snapshot.clear) { bs.clear(); ts.clear(); }
+    snapshot.deleteBanks.forEach(id => bs.delete(id));
+    snapshot.deleteTracks.forEach(id => ts.delete(id));
+    snapshot.putBanks.forEach(bank => bs.put(bank));
+    snapshot.putTracks.forEach(track => ts.put(track));
+    tx.oncomplete = resolve;
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error('Транзакция прервана'));
+  }));
+  return saveQueue;
+}
+async function persist(change) {
+  try { await saveChanges(change); return true; }
+  catch (error) { console.error('Storage error:', error); showToast('Не удалось сохранить изменения. Проверь свободное место.'); return false; }
+}
+
+function makeIcon(type) {
+  const shapes = {
+    up: '<path d="M12 19V5M5 12l7-7 7 7"/>',
+    down: '<path d="M12 5v14m7-7-7 7-7-7"/>',
+    trash: '<path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m5 4v6m4-6v6"/>'
+  };
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '1.7');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.innerHTML = shapes[type];
+  svg.setAttribute('aria-hidden', 'true');
+  return svg;
+}
+function iconButton(icon, title, click, disabled = false, className = '') {
+  const node = document.createElement('button');
+  node.type = 'button';
+  node.className = 'icon-btn ' + className;
+  node.title = title;
+  node.setAttribute('aria-label', title);
+  node.disabled = disabled;
+  node.append(makeIcon(icon));
+  node.addEventListener('click', click);
+  return node;
+}
+function renderTabs() {
+  $('pageSection').hidden = listMode;
+  $('pageSection').style.display = listMode ? 'none' : 'flex';
+  const fragment = document.createDocumentFragment();
+  banks.forEach((bank, index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'page-tab' + (bank.id === activeBankId ? ' active' : '');
+    button.setAttribute('aria-current', bank.id === activeBankId ? 'page' : 'false');
+    button.title = 'Двойной клик — переименовать страницу';
+    const label = document.createElement('span');
+    label.className = 'tab-label';
+    label.textContent = bank.name;
+    const count = document.createElement('span');
+    count.className = 'tab-count';
+    count.textContent = String(bankTracks(bank.id).length) + '/10';
+    button.append(label, count);
+    button.addEventListener('click', () => setActive(bank.id));
+    button.addEventListener('dblclick', () => renameBank(bank.id));
+    fragment.append(button);
+  });
+  $('pageTabs').replaceChildren(fragment);
+  $('pageMenu').hidden = listMode;
+  $('pageMenu').open = false;
+  $('deletePageBtn').disabled = banks.length <= 1;
+  $('pageCount').textContent = banks.length + (banks.length === 1 ? ' страница' : banks.length < 5 ? ' страницы' : ' страниц');
+}
+function render() {
+  const current = activeBank();
+  if (!current) return;
+  renderTabs();
+  $('listMode').checked = listMode;
+  $('counter').textContent = '· ' + tracks.length;
+  $('stopBtn').disabled = playingId === null;
+  $('clearBtn').disabled = !tracks.length;
+  $('exportPageBtn').disabled = false;
+  $('hotkeyBank').textContent = current.name;
+  const visible = listMode ? orderedTracks() : bankTracks(current.id);
+  $('empty').style.display = visible.length ? 'none' : 'flex';
+  $('emptyTitle').textContent = tracks.length ? 'На этой странице пока нет звуков' : 'Пока нет звуков';
+  $('nowPlaying').textContent = playingId === null ? '' : '● ' + (tracks.find(t => t.id === playingId)?.name || 'Воспроизведение');
+  $('nowPlaying').hidden = playingId === null;
+  const all = orderedTracks();
+  const fragment = document.createDocumentFragment();
+  visible.forEach(track => {
+    const playing = playingId === track.id;
+    const belongsToActive = track.bankId === current.id;
+    const keyIndex = bankTracks(track.bankId).findIndex(t => t.id === track.id);
+    const globalIndex = all.findIndex(t => t.id === track.id);
+    const row = document.createElement('div');
+    row.className = 'track' + (playing ? ' playing' : '') + (listMode && belongsToActive ? ' armed' : '');
+    const key = document.createElement('span');
+    key.className = 'keycap';
+    key.textContent = belongsToActive ? HOTKEYS[keyIndex] : '·';
+    key.title = belongsToActive ? 'Горячая клавиша ' + HOTKEYS[keyIndex] : 'Переключи страницу клавишей Tab';
+    const info = document.createElement('div');
+    info.className = 'track-info';
+    const name = document.createElement('span');
+    name.className = 'track-name';
+    name.textContent = track.name;
+    name.title = track.name;
+    const meta = document.createElement('span');
+    meta.className = 'track-meta';
+    meta.textContent = (playing ? '● Воспроизводится · ' : '') + (listMode ? banks.find(b => b.id === track.bankId).name + ' · ' : '') + formatSize(track.size);
+    info.append(name, meta);
+    const controls = document.createElement('div');
+    controls.className = 'actions';
+    const play = document.createElement('button');
+    play.className = 'play-btn';
+    play.type = 'button';
+    play.setAttribute('aria-label', (playing ? 'Остановить ' : 'Воспроизвести ') + track.name);
+    const symbol = document.createElement('span');
+    symbol.className = 'play-symbol';
+    symbol.setAttribute('aria-hidden', 'true');
+    const label = document.createElement('span');
+    label.textContent = playing ? 'Стоп' : 'Играть';
+    play.append(symbol, label);
+    play.addEventListener('click', () => toggleTrack(track.id));
+    controls.append(play,
+      iconButton('up', 'Переместить выше', () => moveTrack(track.id, -1), globalIndex === 0),
+      iconButton('down', 'Переместить ниже', () => moveTrack(track.id, 1), globalIndex === all.length - 1),
+      iconButton('trash', 'Удалить звук', () => removeTrack(track.id), false, 'remove'));
+    row.append(key, info, controls);
+    fragment.append(row);
+  });
+  tracksNode.replaceChildren(fragment);
+}
+
+function stopPlayback() {
+  playbackSeq++;
+  audio.pause();
+  audio.removeAttribute('src');
+  audio.load();
+  if (activeUrl) URL.revokeObjectURL(activeUrl);
+  activeUrl = null;
+  playingId = null;
+  render();
+}
+async function toggleTrack(id) {
+  if (playingId === id) { stopPlayback(); return; }
+  const track = tracks.find(t => t.id === id);
+  if (!track) return;
+  stopPlayback();
+  const session = ++playbackSeq;
+  playingId = id;
+  activeUrl = URL.createObjectURL(track.blob);
+  audio.src = activeUrl;
+  audio.currentTime = 0;
+  audio.onended = () => { if (playbackSeq === session) stopPlayback(); };
+  audio.onerror = () => {
+    if (playbackSeq === session) { stopPlayback(); showToast('Не удалось воспроизвести этот аудиофайл.'); }
+  };
+  render();
+  try { await audio.play(); }
+  catch (error) { if (playbackSeq === session) { stopPlayback(); showToast('Браузер не смог воспроизвести файл.'); } }
+}
+
+async function addFiles(fileList) {
+  const files = [...fileList];
+  const valid = files.filter(f => f.type.startsWith('audio/') || AUDIO_EXT.test(f.name));
+  if (!valid.length) { if (files.length) showToast('Выбери аудиофайлы (MP3, WAV, OGG и т. д.).'); return; }
+  let targetIndex = banks.findIndex(b => b.id === activeBankId);
+  const initialBank = activeBank();
+  const firstFilled = bankTracks(initialBank.id).length < 10 ? initialBank.id : null;
+  const added = [];
+  for (const file of valid) {
+    if (bankTracks(banks[targetIndex].id).length >= 10) {
+      // Не перемешиваем уже настроенные следующие страницы.
+      banks.splice(++targetIndex, 0, makeBank());
     }
+    const bank = banks[targetIndex];
+    const track = { id: uid(), bankId: bank.id, order: bankTracks(bank.id).length, name: file.name, size: file.size, blob: file };
+    tracks.push(track);
+    added.push(track);
+  }
+  normaliseBanks();
+  if (!firstFilled) activeBankId = added[0].bankId;
+  render();
+  await persist({ putBanks: banks, putTracks: added });
+  showToast('Добавлено звуков: ' + added.length + (valid.length < files.length ? ' · неаудиофайлы пропущены' : ''));
+}
+async function removeTrack(id) {
+  const track = tracks.find(t => t.id === id);
+  if (!track) return;
+  if (playingId === id) stopPlayback();
+  tracks = tracks.filter(t => t.id !== id);
+  const survivors = bankTracks(track.bankId);
+  survivors.forEach((t,i) => t.order = i);
+  render();
+  await persist({ deleteTracks: [id], putTracks: survivors });
+}
+async function moveTrack(id, delta) {
+  const all = orderedTracks();
+  const index = all.findIndex(t => t.id === id);
+  const other = all[index + delta];
+  if (index < 0 || !other) return;
+  const a = all[index];
+  const previous = { bankId: a.bankId, order: a.order };
+  a.bankId = other.bankId; a.order = other.order;
+  other.bankId = previous.bankId; other.order = previous.order;
+  render();
+  await persist({ putTracks: [a,other] });
+}
+async function addPage() {
+  const bank = makeBank();
+  const currentIndex = banks.findIndex(b => b.id === activeBankId);
+  banks.splice(currentIndex + 1, 0, bank);
+  normaliseBanks();
+  activeBankId = bank.id;
+  render();
+  await persist({ putBanks: banks });
+}
+async function renameBank(id = activeBankId) {
+  const bank = banks.find(b => b.id === id);
+  if (!bank) return;
+  const name = prompt('Название страницы:', bank.name)?.trim();
+  if (!name || name === bank.name) return;
+  bank.name = name.slice(0, 60);
+  render();
+  await persist({ putBanks: [bank] });
+}
+async function deletePage() {
+  if (banks.length <= 1) return;
+  const bank = activeBank();
+  const selected = bankTracks(bank.id);
+  if (!confirm(selected.length ? `Удалить страницу «${bank.name}» и ${selected.length} звуков?` : `Удалить пустую страницу «${bank.name}»?`)) return;
+  if (selected.some(t => t.id === playingId)) stopPlayback();
+  const index = banks.findIndex(b => b.id === bank.id);
+  banks.splice(index,1);
+  tracks = tracks.filter(t => t.bankId !== bank.id);
+  normaliseBanks();
+  activeBankId = banks[Math.min(index, banks.length - 1)].id;
+  render();
+  await persist({ deleteBanks: [bank.id], deleteTracks: selected.map(t => t.id), putBanks: banks });
+}
+async function clearAll() {
+  if (!tracks.length || !confirm('Удалить все загруженные звуки и страницы?')) return;
+  stopPlayback();
+  banks = [];
+  const bank = makeBank();
+  banks = [bank]; tracks = []; activeBankId = bank.id;
+  render();
+  await persist({ clear: true, putBanks: banks });
+  showToast('Все звуки удалены.');
+}
+function changeBank(direction) {
+  const index = banks.findIndex(b => b.id === activeBankId);
+  if (banks.length > 1) setActive(banks[(index + direction + banks.length) % banks.length].id);
+}
 
-    function readAll() {
-      return new Promise((resolve, reject) => {
-        const req = db.transaction('tracks', 'readonly').objectStore('tracks').getAll();
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      });
-    }
-
-    function writeBatch(records) {
-      if (!db || !records.length) return Promise.resolve();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction('tracks', 'readwrite');
-        const store = tx.objectStore('tracks');
-        for (const record of records) store.put(record);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error || new Error('Сохранение прервано'));
-      });
-    }
-
-    function deleteOne(id) {
-      if (!db) return Promise.resolve();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction('tracks', 'readwrite');
-        tx.objectStore('tracks').delete(id);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error || new Error('Удаление прервано'));
-      });
-    }
-
-    function clearDatabase() {
-      if (!db) return Promise.resolve();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction('tracks', 'readwrite');
-        tx.objectStore('tracks').clear();
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error || new Error('Очистка прервана'));
-      });
-    }
-
-    function showToast(message) {
-      const node = $('toast');
-      node.textContent = message;
-      node.classList.add('visible');
-      clearTimeout(toastTimeout);
-      toastTimeout = setTimeout(() => node.classList.remove('visible'), 3200);
-    }
-
-    function formatSize(bytes) {
-      if (bytes < 1024 * 1024) return Math.max(1, Math.round(bytes / 1024)) + ' КБ';
-      return (bytes / (1024 * 1024)).toFixed(1).replace('.', ',') + ' МБ';
-    }
-
-    function makeIcon(type) {
-      const shapes = {
-        up: '<path d="M12 19V5M5 12l7-7 7 7"/>',
-        down: '<path d="M12 5v14m7-7-7 7-7-7"/>',
-        trash: '<path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m5 4v6m4-6v6"/>'
-      };
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('viewBox', '0 0 24 24');
-      svg.setAttribute('fill', 'none');
-      svg.setAttribute('stroke', 'currentColor');
-      svg.setAttribute('stroke-width', '1.7');
-      svg.setAttribute('stroke-linecap', 'round');
-      svg.setAttribute('stroke-linejoin', 'round');
-      svg.innerHTML = shapes[type];
-      svg.setAttribute('aria-hidden', 'true');
-      return svg;
-    }
-
-    function iconButton(icon, title, onClick, disabled = false, className = '') {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'icon-btn ' + className;
-      button.title = title;
-      button.setAttribute('aria-label', title);
-      button.disabled = disabled;
-      button.append(makeIcon(icon));
-      button.addEventListener('click', onClick);
-      return button;
-    }
-
-    function render() {
-      $('empty').hidden = tracks.length > 0;
-      // CSS display:flex в .empty переопределяет [hidden] в некоторых браузерах.
-      $('empty').style.display = tracks.length ? 'none' : 'flex';
-      $('counter').textContent = '· ' + tracks.length;
-      $('stopBtn').disabled = playingId === null;
-      $('clearBtn').disabled = !tracks.length;
-      const fragment = document.createDocumentFragment();
-
-      tracks.forEach((track, index) => {
-        const playing = playingId === track.id;
-        const row = document.createElement('div');
-        row.className = 'track' + (playing ? ' playing' : '');
-
-        const key = document.createElement('span');
-        key.className = 'keycap';
-        key.textContent = index < 9 ? String(index + 1) : (index === 9 ? '0' : '—');
-        key.title = index < 10 ? 'Горячая клавиша' : 'Перемести выше, чтобы назначить клавишу';
-
-        const info = document.createElement('div');
-        info.className = 'track-info';
-        const name = document.createElement('span');
-        name.className = 'track-name';
-        name.textContent = track.name;
-        name.title = track.name;
-        const meta = document.createElement('span');
-        meta.className = 'track-meta';
-        meta.textContent = playing ? '● Воспроизводится' : formatSize(track.size);
-        info.append(name, meta);
-
-        const controls = document.createElement('div');
-        controls.className = 'actions';
-        const play = document.createElement('button');
-        play.className = 'play-btn';
-        play.type = 'button';
-        play.setAttribute('aria-label', (playing ? 'Остановить ' : 'Воспроизвести ') + track.name);
-        const symbol = document.createElement('span');
-        symbol.className = 'play-symbol';
-        symbol.setAttribute('aria-hidden', 'true');
-        const label = document.createElement('span');
-        label.textContent = playing ? 'Стоп' : 'Играть';
-        play.append(symbol, label);
-        play.addEventListener('click', () => toggleTrack(track.id));
-
-        controls.append(
-          play,
-          iconButton('up', 'Переместить выше', () => moveTrack(index, -1), index === 0),
-          iconButton('down', 'Переместить ниже', () => moveTrack(index, 1), index === tracks.length - 1),
-          iconButton('trash', 'Удалить звук', () => removeTrack(track.id), false, 'remove')
-        );
-        row.append(key, info, controls);
-        fragment.appendChild(row);
-      });
-      tracksNode.replaceChildren(fragment);
-    }
-
-    function stopPlayback() {
-      playbackSeq++;
-      audio.pause();
-      audio.removeAttribute('src');
-      audio.load();
-      if (activeUrl) URL.revokeObjectURL(activeUrl);
-      activeUrl = null;
-      playingId = null;
-      render();
-    }
-
-    async function toggleTrack(id) {
-      if (playingId === id) {
-        stopPlayback();
-        return;
+// Архив: стандартный ZIP (без сжатия — MP3/OGG уже сжаты), манифест + исходные байты аудио.
+// В отличие от Base64 это не раздувает файлы на треть и не требует сервера.
+const crcTable = (() => {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let v = i;
+    for (let j = 0; j < 8; j++) v = (v & 1) ? (0xedb88320 ^ (v >>> 1)) : (v >>> 1);
+    table[i] = v >>> 0;
+  }
+  return table;
+})();
+async function crc32Blob(blob) {
+  let crc = 0xffffffff;
+  for (let at = 0; at < blob.size; at += 1048576) {
+    const bytes = new Uint8Array(await blob.slice(at, at + 1048576).arrayBuffer());
+    for (let i = 0; i < bytes.length; i++) crc = crcTable[(crc ^ bytes[i]) & 255] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+async function createZip(entries) {
+  if (entries.length > 65535) throw new Error('Слишком много файлов для одного ZIP');
+  const enc = new TextEncoder();
+  const chunks = [];
+  const central = [];
+  let offset = 0;
+  for (const entry of entries) {
+    const name = enc.encode(entry.path);
+    const size = entry.blob.size;
+    if (size > 0xffffffff || offset + size > 0xffffffff) throw new Error('ZIP больше 4 ГБ не поддерживается');
+    const crc = await crc32Blob(entry.blob);
+    const local = new Uint8Array(30 + name.length);
+    const lv = new DataView(local.buffer);
+    lv.setUint32(0, 0x04034b50, true); lv.setUint16(4, 20, true);
+    lv.setUint16(6, 0x0800, true); lv.setUint32(14, crc, true);
+    lv.setUint32(18, size, true); lv.setUint32(22, size, true);
+    lv.setUint16(26, name.length, true); local.set(name, 30);
+    chunks.push(local, entry.blob);
+    const cd = new Uint8Array(46 + name.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true); cv.setUint16(8, 0x0800, true);
+    cv.setUint32(16, crc, true); cv.setUint32(20, size, true);
+    cv.setUint32(24, size, true); cv.setUint16(28, name.length, true);
+    cv.setUint32(42, offset, true); cd.set(name, 46);
+    central.push(cd);
+    offset += local.length + size;
+  }
+  const centralSize = central.reduce((sum, bytes) => sum + bytes.length, 0);
+  if (offset + centralSize + 22 > 0xffffffff) throw new Error('ZIP больше 4 ГБ не поддерживается');
+  const end = new Uint8Array(22);
+  const ev = new DataView(end.buffer);
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(8, entries.length, true); ev.setUint16(10, entries.length, true);
+  ev.setUint32(12, centralSize, true); ev.setUint32(16, offset, true);
+  return new Blob([...chunks, ...central, end], { type: 'application/zip' });
+}
+async function openZip(file) {
+  if (file.size < 22) throw new Error('Это не ZIP-архив');
+  const tailOffset = Math.max(0, file.size - 65557);
+  const tail = new DataView(await file.slice(tailOffset).arrayBuffer());
+  let end = -1;
+  for (let i = tail.byteLength - 22; i >= 0; i--) {
+    if (tail.getUint32(i, true) === 0x06054b50 && i + 22 + tail.getUint16(i + 20, true) === tail.byteLength) { end = i; break; }
+  }
+  if (end < 0) throw new Error('Не удалось прочитать ZIP');
+  const count = tail.getUint16(end + 10, true);
+  const size = tail.getUint32(end + 12, true);
+  const offset = tail.getUint32(end + 16, true);
+  if (count > 2000 || offset + size > file.size || count === 65535) throw new Error('Слишком большой или повреждённый ZIP');
+  const bytes = new DataView(await file.slice(offset, offset + size).arrayBuffer());
+  const names = new TextDecoder();
+  const entries = new Map();
+  let at = 0;
+  for (let i = 0; i < count; i++) {
+    if (at + 46 > bytes.byteLength || bytes.getUint32(at, true) !== 0x02014b50) throw new Error('ZIP повреждён');
+    const method = bytes.getUint16(at + 10, true);
+    const crc = bytes.getUint32(at + 16, true);
+    const compressed = bytes.getUint32(at + 20, true);
+    const uncompressed = bytes.getUint32(at + 24, true);
+    const nameLen = bytes.getUint16(at + 28, true);
+    const extraLen = bytes.getUint16(at + 30, true);
+    const commentLen = bytes.getUint16(at + 32, true);
+    const localOffset = bytes.getUint32(at + 42, true);
+    if (at + 46 + nameLen + extraLen + commentLen > bytes.byteLength) throw new Error('ZIP повреждён');
+    const name = names.decode(new Uint8Array(bytes.buffer, at + 46, nameLen));
+    if (entries.has(name) || method !== 0 || compressed !== uncompressed) throw new Error('Неподдерживаемый ZIP: нужен архив из simple sound');
+    entries.set(name, { crc, size: compressed, localOffset });
+    at += 46 + nameLen + extraLen + commentLen;
+  }
+  async function getBlob(name, type = '') {
+    const entry = entries.get(name);
+    if (!entry) throw new Error('В архиве отсутствует ' + name);
+    const raw = new DataView(await file.slice(entry.localOffset, entry.localOffset + 30).arrayBuffer());
+    if (raw.byteLength !== 30 || raw.getUint32(0, true) !== 0x04034b50 || raw.getUint16(8, true) !== 0) throw new Error('Повреждён ZIP-заголовок');
+    const start = entry.localOffset + 30 + raw.getUint16(26, true) + raw.getUint16(28, true);
+    if (start + entry.size > file.size) throw new Error('ZIP обрезан');
+    const blob = file.slice(start, start + entry.size, type);
+    if (await crc32Blob(blob) !== entry.crc) throw new Error('Повреждены данные ' + name);
+    return blob;
+  }
+  return { getBlob };
+}
+function safeName(value) { return (value || 'page').toLowerCase().replace(/[^a-zа-яё0-9-]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 50) || 'page'; }
+function mimeFor(name) {
+  const suffix = (name.split('.').pop() || '').toLowerCase();
+  return ({mp3:'audio/mpeg',wav:'audio/wav',ogg:'audio/ogg',m4a:'audio/mp4',aac:'audio/aac',flac:'audio/flac',opus:'audio/ogg',webm:'audio/webm',aiff:'audio/aiff',aif:'audio/aiff',mp4:'audio/mp4'})[suffix] || 'application/octet-stream';
+}
+async function exportArchive(scope) {
+  if (busy) return;
+  busy = true;
+  try {
+    const selected = scope === 'all' ? banks : [activeBank()];
+    const manifest = { format: 'simple-sound', version: 1, scope, exportedAt: new Date().toISOString(), banks: [] };
+    const entries = [];
+    let i = 0;
+    for (const bank of selected) {
+      const group = { name: bank.name, tracks: [] };
+      for (const track of bankTracks(bank.id)) {
+        const path = 'audio/' + String(++i).padStart(5, '0') + '.bin';
+        entries.push({ path, blob: track.blob });
+        group.tracks.push({ name: track.name, file: path, size: track.blob.size, type: track.blob.type || mimeFor(track.name) });
       }
-      const track = tracks.find(t => t.id === id);
-      if (!track) return;
+      manifest.banks.push(group);
+    }
+    entries.unshift({ path: 'manifest.json', blob: new Blob([JSON.stringify(manifest, null, 2)], {type: 'application/json'}) });
+    const zip = await createZip(entries);
+    const url = URL.createObjectURL(zip);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'simple-sound-' + (scope === 'all' ? 'all' : safeName(selected[0].name)) + '.zip';
+    document.body.append(link);
+    link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    showToast('ZIP готов: ' + (scope === 'all' ? 'все страницы' : selected[0].name));
+  } catch (error) { console.error(error); showToast(error.message || 'Не удалось создать архив'); }
+  finally { busy = false; }
+}
+async function importArchive(file, mode) {
+  if (!file || busy) return;
+  busy = true;
+  try {
+    const zip = await openZip(file);
+    const manifestBlob = await zip.getBlob('manifest.json', 'application/json');
+    if (manifestBlob.size > 2 * 1048576) throw new Error('Слишком большой манифест');
+    const manifest = JSON.parse(await manifestBlob.text());
+    if (manifest.format !== 'simple-sound' || manifest.version !== 1 || !Array.isArray(manifest.banks) || !manifest.banks.length || manifest.banks.length > 200) {
+      throw new Error('Это не архив simple sound');
+    }
+    if (mode === 'page' && manifest.banks.length !== 1) throw new Error('Для добавления страницы выбери ZIP с одной страницей');
+    const importedBanks = [];
+    const importedTracks = [];
+    const seenFiles = new Set();
+    for (const record of manifest.banks) {
+      if (typeof record.name !== 'string' || !Array.isArray(record.tracks) || record.tracks.length > 10) throw new Error('Повреждён список страниц');
+      const bank = { id: uid(), name: record.name.trim().slice(0,60) || 'Страница', order: 0 };
+      importedBanks.push(bank);
+      for (const entry of record.tracks) {
+        if (!entry || typeof entry.name !== 'string' || typeof entry.file !== 'string' || !/^audio\/[\w-]+\.bin$/.test(entry.file) || seenFiles.has(entry.file)) throw new Error('Повреждён список звуков');
+        seenFiles.add(entry.file);
+        const name = entry.name.slice(0,512);
+        const blob = await zip.getBlob(entry.file, mimeFor(name));
+        if (blob.size !== entry.size) throw new Error('Несовпадение размера ' + name);
+        importedTracks.push({ id: uid(), bankId: bank.id, name, size: blob.size, blob, order: bankTracksFromImport(importedTracks, bank.id) });
+      }
+    }
+    if (mode === 'all') {
+      if (tracks.length && !confirm(`Заменить текущие ${tracks.length} звуков архивом (${importedTracks.length} звуков)? Это удалит текущий набор.`)) return;
+      importedBanks.forEach((bank,i) => bank.order = i);
+      if (!(await persist({ clear: true, putBanks: importedBanks, putTracks: importedTracks }))) throw new Error('Импорт не сохранён');
       stopPlayback();
-      const session = ++playbackSeq;
-      playingId = id;
-      activeUrl = URL.createObjectURL(track.blob);
-      audio.src = activeUrl;
-      audio.currentTime = 0;
-      audio.onended = () => { if (playbackSeq === session) stopPlayback(); };
-      audio.onerror = () => {
-        if (playbackSeq === session) {
-          stopPlayback();
-          showToast('Не удалось воспроизвести файл. Проверь формат аудио.');
+      banks = importedBanks; tracks = importedTracks; activeBankId = banks[0].id;
+    } else {
+      const index = banks.findIndex(bank => bank.id === activeBankId);
+      const proposedBanks = [...banks];
+      proposedBanks.splice(index + 1, 0, importedBanks[0]);
+      proposedBanks.forEach((bank,i) => bank.order = i);
+      if (!(await persist({ putBanks: proposedBanks, putTracks: importedTracks }))) throw new Error('Импорт не сохранён');
+      banks = proposedBanks; tracks.push(...importedTracks); activeBankId = importedBanks[0].id;
+    }
+    render();
+    showToast('Импортировано: ' + importedTracks.length + ' звуков · ' + importedBanks.length + ' страниц');
+    if (!db) showToast('Звуки импортированы, но не сохранятся после закрытия вкладки.');
+  } catch (error) { console.error(error); showToast(error.message || 'Не удалось импортировать ZIP'); }
+  finally { busy = false; }
+}
+function bankTracksFromImport(importedTracks, bankId) { return importedTracks.filter(t => t.bankId === bankId).length; }
+
+$('addBtn').addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', async () => { await addFiles(fileInput.files); fileInput.value = ''; });
+$('stopBtn').addEventListener('click', () => { if (playingId !== null) stopPlayback(); });
+$('clearBtn').addEventListener('click', clearAll);
+$('addPageBtn').addEventListener('click', addPage);
+$('renamePageBtn').addEventListener('click', () => renameBank());
+$('deletePageBtn').addEventListener('click', deletePage);
+$('listMode').addEventListener('change', event => {
+  listMode = event.target.checked;
+  try { localStorage.setItem('simple-sound-list-mode', listMode ? '1' : '0'); } catch (_) {}
+  render();
+});
+$('exportPageBtn').addEventListener('click', () => { $('exportMenu').open = false; exportArchive('page'); });
+$('exportAllBtn').addEventListener('click', () => { $('exportMenu').open = false; exportArchive('all'); });
+$('importPageBtn').addEventListener('click', () => { $('importMenu').open = false; $('importPageInput').click(); });
+$('importAllBtn').addEventListener('click', () => { $('importMenu').open = false; $('importAllInput').click(); });
+for (const mode of ['Page','All']) {
+  const input = $('import' + mode + 'Input');
+  input.addEventListener('change', async () => { const file = input.files[0]; input.value = ''; await importArchive(file, mode.toLowerCase()); });
+}
+document.addEventListener('click', event => {
+  for (const menu of document.querySelectorAll('.menu[open]')) if (!menu.contains(event.target)) menu.open = false;
+});
+document.addEventListener('keydown', event => {
+  if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
+  const target = event.target;
+  const editable = target && (target.matches('input[type="text"], input[type="search"], input[type="number"], textarea, select') || target.isContentEditable);
+  if (event.key === 'Tab' && !editable) {
+    event.preventDefault();
+    changeBank(event.shiftKey ? -1 : 1);
+    return;
+  }
+  if (editable || event.shiftKey) return;
+  if (/^[1-9]$/.test(event.key) || event.key === '0') {
+    const index = event.key === '0' ? 9 : Number(event.key) - 1;
+    const track = bankTracks(activeBankId)[index];
+    if (track) { event.preventDefault(); toggleTrack(track.id); }
+  } else if (event.key === 'Escape') {
+    for (const menu of document.querySelectorAll('.menu[open]')) menu.open = false;
+    if (playingId !== null) { event.preventDefault(); stopPlayback(); }
+  } else if (event.key === ' ' && !(target && target.closest('button, summary, a, input, label'))) {
+    if (playingId !== null) { event.preventDefault(); stopPlayback(); }
+  }
+});
+// Звуки можно закидывать пачкой в любую область страницы.
+const isFileDrag = event => event.dataTransfer && [...event.dataTransfer.types].includes('Files');
+document.addEventListener('dragenter', event => {
+  if (!isFileDrag(event)) return;
+  event.preventDefault(); dragDepth++;
+  $('overlay').classList.add('visible');
+});
+document.addEventListener('dragover', event => {
+  if (!isFileDrag(event)) return;
+  event.preventDefault(); event.dataTransfer.dropEffect = 'copy';
+});
+document.addEventListener('dragleave', event => {
+  if (!isFileDrag(event)) return;
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (!dragDepth) $('overlay').classList.remove('visible');
+});
+document.addEventListener('drop', event => {
+  event.preventDefault(); dragDepth = 0; $('overlay').classList.remove('visible');
+  if (event.dataTransfer?.files?.length) addFiles(event.dataTransfer.files);
+});
+window.addEventListener('blur', () => { dragDepth = 0; $('overlay').classList.remove('visible'); });
+
+async function initialize() {
+  try { listMode = localStorage.getItem('simple-sound-list-mode') === '1'; } catch (_) {}
+  try {
+    db = await openDatabase();
+    const stored = await loadDatabase();
+    if (stored.banks.length) {
+      banks = stored.banks.sort((a,b) => a.order - b.order);
+      tracks = stored.tracks;
+      // Восстановление старых записей, если миграция была прервана.
+      const missing = tracks.filter(t => !banks.some(b => b.id === t.bankId));
+      if (missing.length) {
+        let legacyBank = banks[banks.length - 1];
+        for (const track of missing.sort((a,b) => a.order - b.order)) {
+          if (bankTracks(legacyBank.id).length >= 10) { legacyBank = makeBank(); banks.push(legacyBank); }
+          track.bankId = legacyBank.id;
+          track.order = bankTracks(legacyBank.id).length;
         }
-      };
-      render();
-      try {
-        await audio.play();
-      } catch (error) {
-        if (playbackSeq === session) {
-          stopPlayback();
-          showToast('Браузер не смог воспроизвести этот файл.');
-        }
+        normaliseBanks();
+        await saveChanges({ putBanks: banks, putTracks: missing });
       }
+    } else {
+      // Совместимость с v1: старые звуки автоматически делятся по десять.
+      const legacy = stored.tracks.sort((a,b) => a.order - b.order);
+      banks = [];
+      for (let i = 0; i < Math.max(1, Math.ceil(legacy.length / 10)); i++) {
+        const bank = makeBank(); banks.push(bank);
+        legacy.slice(i*10,(i+1)*10).forEach((t,index) => { t.bankId = bank.id; t.order = index; });
+      }
+      tracks = legacy;
+      await saveChanges({ putBanks: banks, putTracks: tracks });
     }
-
-    async function addFiles(list) {
-      const files = [...list];
-      const allowed = /\.(mp3|wav|ogg|m4a|aac|flac|opus|webm|aiff|aif|mp4)$/i;
-      const valid = files.filter(f => f.type.startsWith('audio/') || allowed.test(f.name));
-      if (!valid.length) {
-        if (files.length) showToast('Выбери аудиофайлы (MP3, WAV, OGG и т. д.).');
-        return;
-      }
-      const startingOrder = tracks.length;
-      const records = valid.map((f, index) => ({
-        id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now() + '-' + Math.random(),
-        name: f.name,
-        size: f.size,
-        blob: f,
-        order: startingOrder + index
-      }));
-      tracks.push(...records);
-      render();
-      try {
-        await writeBatch(records);
-        showToast('Добавлено звуков: ' + records.length);
-      } catch (error) {
-        console.error(error);
-        showToast('Звуки добавлены, но не сохранились. Возможно, закончилось место.');
-      }
-      if (valid.length !== files.length) showToast('Некоторые файлы пропущены: это не аудио.');
-    }
-
-    async function removeTrack(id) {
-      if (playingId === id) stopPlayback();
-      tracks = tracks.filter(t => t.id !== id);
-      tracks.forEach((t, i) => { t.order = i; });
-      render();
-      try {
-        await deleteOne(id);
-        await writeBatch(tracks);
-      } catch (error) {
-        console.error(error);
-        showToast('Не удалось обновить сохранённый список.');
-      }
-    }
-
-    async function moveTrack(index, delta) {
-      const next = index + delta;
-      if (next < 0 || next >= tracks.length) return;
-      [tracks[index], tracks[next]] = [tracks[next], tracks[index]];
-      tracks.forEach((t, i) => { t.order = i; });
-      render();
-      try { await writeBatch(tracks); }
-      catch (error) { console.error(error); showToast('Не удалось сохранить порядок звуков.'); }
-    }
-
-    $('addBtn').addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', async () => {
-      await addFiles(fileInput.files);
-      fileInput.value = '';
-    });
-    $('stopBtn').addEventListener('click', () => { if (playingId !== null) stopPlayback(); });
-    $('clearBtn').addEventListener('click', async () => {
-      if (!tracks.length || !confirm('Удалить все загруженные звуки?')) return;
-      stopPlayback();
-      tracks = [];
-      render();
-      try { await clearDatabase(); showToast('Все звуки удалены.'); }
-      catch (error) { console.error(error); showToast('Не удалось очистить сохранённые звуки.'); }
-    });
-
-    document.addEventListener('keydown', event => {
-      if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
-      const target = event.target;
-      if (target && (target.matches('input, textarea, select, button') || target.isContentEditable)) return;
-      if (/^[1-9]$/.test(event.key) || event.key === '0') {
-        const index = event.key === '0' ? 9 : Number(event.key) - 1;
-        if (tracks[index]) { event.preventDefault(); toggleTrack(tracks[index].id); }
-      } else if (event.key === 'Escape' || event.key === ' ') {
-        if (playingId !== null) { event.preventDefault(); stopPlayback(); }
-      }
-    });
-
-    // Перетаскивание пачки файлов в любую область вкладки.
-    const isFileDrag = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
-    document.addEventListener('dragenter', event => {
-      if (!isFileDrag(event)) return;
-      event.preventDefault();
-      dragDepth++;
-      $('overlay').classList.add('visible');
-    });
-    document.addEventListener('dragover', event => {
-      if (!isFileDrag(event)) return;
-      event.preventDefault();
-      event.dataTransfer.dropEffect = 'copy';
-    });
-    document.addEventListener('dragleave', event => {
-      if (!isFileDrag(event)) return;
-      dragDepth = Math.max(0, dragDepth - 1);
-      if (!dragDepth) $('overlay').classList.remove('visible');
-    });
-    document.addEventListener('drop', event => {
-      event.preventDefault();
-      dragDepth = 0;
-      $('overlay').classList.remove('visible');
-      if (event.dataTransfer && event.dataTransfer.files.length) addFiles(event.dataTransfer.files);
-    });
-    window.addEventListener('blur', () => {
-      dragDepth = 0;
-      $('overlay').classList.remove('visible');
-    });
-
-    async function initialize() {
-      try {
-        db = await openDatabase();
-        tracks = await readAll();
-        tracks.sort((a, b) => a.order - b.order);
-      } catch (error) {
-        console.warn('Storage unavailable:', error);
-        db = null;
-        $('storageInfo').textContent = 'Сохранение в браузере недоступно · Esc или Space — стоп';
-        showToast('Автосохранение недоступно. Звуки работают до закрытия страницы.');
-      }
-      render();
-    }
-    initialize();
+  } catch (error) {
+    console.warn('Storage unavailable:', error);
+    db = null; banks = [makeBank()]; tracks = [];
+    $('storageInfo').textContent = 'Автосохранение недоступно · Esc или Space — стоп';
+    showToast('Сохранение недоступно. Звуки работают до закрытия вкладки.');
+  }
+  try {
+    const last = localStorage.getItem('simple-sound-active-bank');
+    activeBankId = banks.some(b => b.id === last) ? last : banks[0].id;
+  } catch (_) { activeBankId = banks[0].id; }
+  render();
+}
+initialize();
   </script>
 </body>
 </html>
